@@ -16,6 +16,9 @@ import com.fasterxml.jackson.databind.JsonNode;
  */
 public class HomeController extends Controller {
 
+    @Inject        
+    DatabaseController databaseController;
+    // FormFactory formFactory;
     /**
      * An action that renders an HTML page with a welcome message.
      * The configuration in the <code>routes</code> file means that
@@ -37,15 +40,13 @@ public class HomeController extends Controller {
             this.longitude = longitude;
         }
     }
-   
 
     @Inject
     FormFactory formFactory;
+
     public Result handleupdates() {
-        DatabaseController dbcontroller = new DatabaseController();
-        dbcontroller.connect();
-        dbcontroller.dropTable();
-        dbcontroller.createNewTable();
+        // databaseController.dropTable();
+        databaseController.createNewTable();
         DynamicForm dynamicForm = formFactory.form().bindFromRequest();
         String username = dynamicForm.get("username");
         String timestampString = dynamicForm.get("timestamp");
@@ -55,12 +56,9 @@ public class HomeController extends Controller {
         double latitude = latitudeString == null ? null : Double.parseDouble(latitudeString);
         double longitude = longitudeString == null? null : Double.parseDouble(longitudeString);
         Location location = new Location(username, timestamp, latitude, longitude);
-        dbcontroller.insert(username, timestamp, latitude, longitude);
-        dbcontroller.selectAll();
+        databaseController.insert(username, timestamp, latitude, longitude);
+        databaseController.selectAll();
         JsonNode locationJson = Json.toJson(location);
         return ok(locationJson);
     }
-
-    
-
 }

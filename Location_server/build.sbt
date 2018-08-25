@@ -7,4 +7,4 @@ scalaVersion := "2.12.4"
 
 libraryDependencies += guice
 libraryDependencies += javaJdbc
-libraryDependencies += "org.xerial" % "sqlite-jdbc" % "3.8.6"
+libraryDependencies += "org.xerial" % "sqlite-jdbc" % "3.23.1"

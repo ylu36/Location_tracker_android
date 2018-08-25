@@ -1,4 +1,6 @@
 package dbconnection;
+import javax.inject.Inject;
+import java.lang.Object;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -6,37 +8,23 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-
+import play.db.*;
 public class DatabaseController {
-
-    static String url = "jdbc:sqlite:db/location.db";
-    public static void connect() {
-        Connection conn = null;
-        try {
-            // create a connection to the database
-            conn = DriverManager.getConnection(url);
-            
-            System.out.println("Connection to SQLite has been established.");
-            
-        } catch (SQLException e) {
-            System.out.println("err: "+e.getMessage());
-        } finally {
-            try {
-                if (conn != null) {
-                    conn.close();
-                }
-            } catch (SQLException ex) {
-                System.out.println("err is: "+ex.getMessage());
-            }
-        }
+    private Database db;
+    private DatabaseExecutionContext executionContext;
+    
+    @Inject
+    public DatabaseController(Database db, DatabaseExecutionContext executionContext) {
+        this.db = db;
+        this.executionContext = executionContext;
     }
 
-    public static void dropTable() {
+    public void dropTable() {
                 
         // SQL statement for creating a new table
         String sql = "DROP TABLE Location;";
         
-        try (Connection conn = DriverManager.getConnection(url);
+        try (Connection conn = db.getConnection();
                 Statement stmt = conn.createStatement()) {
             // create a new table
             stmt.execute(sql);
@@ -46,7 +34,7 @@ public class DatabaseController {
         }
     }
 
-    public static void createNewTable() {
+    public void createNewTable() {
                 
         // SQL statement for creating a new table
         String sql = "CREATE TABLE IF NOT EXISTS Location (\n"
@@ -58,7 +46,7 @@ public class DatabaseController {
                 // + " distance real\n"
                 + ");";
         
-        try (Connection conn = DriverManager.getConnection(url);
+        try (Connection conn = db.getConnection();
                 Statement stmt = conn.createStatement()) {
             // create a new table
             stmt.execute(sql);
@@ -72,7 +60,7 @@ public class DatabaseController {
         String sql = "INSERT INTO Location(username, timestamp, latitude, longitude) VALUES(?,?,?,?)";
  
         try (
-            Connection conn = DriverManager.getConnection(url);
+            Connection conn = db.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, username);
             pstmt.setLong(2, timestamp);
@@ -87,7 +75,7 @@ public class DatabaseController {
     public void selectAll(){
         String sql = "SELECT id, username, timestamp, latitude, longitude FROM Location";
         
-        try (Connection conn = DriverManager.getConnection(url);
+        try (Connection conn = db.getConnection();
              Statement stmt  = conn.createStatement();
              ResultSet rs    = stmt.executeQuery(sql)){
             
