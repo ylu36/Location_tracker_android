@@ -1,0 +1,5 @@
+.settings/
+.g8/
+logs/
+bin/
+target/
