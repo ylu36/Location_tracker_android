@@ -1,14 +1,17 @@
 package controllers;
 import dbconnection.*;
-import play.mvc.*;
 import com.google.inject.Inject;
 import play.data.*;
 import play.libs.Json;
 import java.util.*;
 import java.io.*;
+import play.mvc.BodyParser;
+import play.mvc.Controller;
+import play.mvc.Result;
 import java.lang.Object;
 import com.fasterxml.jackson.databind.JsonNode;
-
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import models.*;
 
 /**
  * This controller contains an action to handle HTTP requests
@@ -30,19 +33,7 @@ public class HomeController extends Controller {
     public Result index() {
         return ok(views.html.index.render());
     }
-    public static class Location {
-        public String username;
-        public long timestamp;
-        public double latitude, longitude;
-
-        public Location(String u, long t, double lat, double longitude) {
-            this.username = u;
-            this.timestamp = t;
-            this.latitude = lat;
-            this.longitude = longitude;
-        }
-    }
-
+    
     @Inject
     FormFactory formFactory;
 
@@ -57,12 +48,14 @@ public class HomeController extends Controller {
         String longitudeString = dynamicForm.get("longitude");
         double latitude = latitudeString == null ? null : Double.parseDouble(latitudeString);
         double longitude = longitudeString == null? null : Double.parseDouble(longitudeString);
-        Location location = new Location(username, timestamp, latitude, longitude);
-        databaseController.insert(username, timestamp, latitude, longitude);
+        double distance = 0;
+        Location location = new Location(username, timestamp, latitude, longitude, distance);
+        databaseController.insert(username, timestamp, latitude, longitude, distance);
         databaseController.selectAll();
         JsonNode locationJson = Json.toJson(location);
         return ok(locationJson);
     }
+
 
     // ref: https://en.wikipedia.org/wiki/Haversine_formula
     public double calculateDistanceInKm(double lat1, double long1, double lat2, double long2) {
@@ -75,4 +68,5 @@ public class HomeController extends Controller {
         return d;
     }
 
+    
 }
