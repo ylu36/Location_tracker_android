@@ -11,6 +11,7 @@ import java.sql.ResultSet;
 import play.db.*;
 import models.*;
 public class DatabaseController {
+    private static final double d2r = Math.PI / 180.;
     private Database db;
     private DatabaseExecutionContext executionContext;
     
@@ -56,28 +57,39 @@ public class DatabaseController {
             System.out.println(e.getMessage());
         }
     }
+    // ref: https://en.wikipedia.org/wiki/Haversine_formula
+    public double calculateDistanceInKm(double lat1, double long1, double lat2, double long2) {
+        double dlong = (long2 - long1) * d2r;
+        double dlat = (lat2 - lat1) * d2r;
+        double a = Math.pow(Math.sin(dlat/2.0), 2) + Math.cos(lat1*d2r) * Math.cos(lat2*d2r) * Math.pow(Math.sin(dlong/2.0), 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        double d = 6367 * c;
 
-    public Location getPreviousLocation(String username) {
+        return d;
+    }
+
+    public double getDistance(Location location) {
         
-        String sql = "SELECT timestamp, latitude, longitude, distance FROM Location where username =" + username + " order by id desc limit 1";
-        Location loc = null;
+        String sql = "SELECT latitude,longitude, distance from location where username=? order by id desc";
+        
         try (
             Connection conn = db.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                long time = rs.getLong("timestamp");
-                double lat = rs.getDouble("latitude");
-                double longi = rs.getDouble("longitude");
-                double distance = rs.getDouble("distance");
-                loc = new Location(username, time, lat, longi, distance);
+
+                pstmt.setString(1, location.username);
+                ResultSet result = pstmt.executeQuery();
+                Double currentLat = location.latitude;
+                Double currentLon = location.longitude;
+
+                Double dist = 0.0;
+                dist = calculateDistanceInKm(result.getDouble(1), result.getDouble(2), currentLat, currentLon);
+                dist += result.getDouble("distance");
             }
-            
-            return loc;
-		} catch (SQLException e) {
-			System.out.println(e.getMessage());
-		}
-		return null;
+            return dist;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+        return 0.;
     }
 
     public void insert(String username, long timestamp, double latitude, double longitude, double distance) {
@@ -98,7 +110,7 @@ public class DatabaseController {
     }
 
     public void selectAll(){
-        String sql = "SELECT id, username, timestamp, latitude, longitude FROM Location";
+        String sql = "SELECT id, username, timestamp, latitude, longitude, distance FROM Location";
         
         try (Connection conn = db.getConnection();
              Statement stmt  = conn.createStatement();
@@ -108,7 +120,8 @@ public class DatabaseController {
             while (rs.next()) {
                 System.out.println(rs.getInt("id") +  "\t" + 
                                    rs.getString("username") + "\t" +
-                                   rs.getDouble("latitude"));
+                                   rs.getLong("timestamp") + "\t" +
+                                   rs.getDouble("distance"));
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());

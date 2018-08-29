@@ -19,7 +19,6 @@ import models.*;
  */
 public class HomeController extends Controller {
 
-    private static final double d2r = Math.PI / 180.;
 
     @Inject        
     DatabaseController databaseController;
@@ -37,6 +36,7 @@ public class HomeController extends Controller {
     @Inject
     FormFactory formFactory;
 
+    @BodyParser.Of(BodyParser.Json.class)
     public Result handleupdates() {
         // databaseController.dropTable();
         databaseController.createNewTable();
@@ -50,23 +50,12 @@ public class HomeController extends Controller {
         double longitude = longitudeString == null? null : Double.parseDouble(longitudeString);
         double distance = 0;
         Location location = new Location(username, timestamp, latitude, longitude, distance);
+        distance = databaseController.getDistance(location);
         databaseController.insert(username, timestamp, latitude, longitude, distance);
         databaseController.selectAll();
         JsonNode locationJson = Json.toJson(location);
         return ok(locationJson);
     }
 
-
-    // ref: https://en.wikipedia.org/wiki/Haversine_formula
-    public double calculateDistanceInKm(double lat1, double long1, double lat2, double long2) {
-        double dlong = (long2 - long1) * d2r;
-        double dlat = (lat2 - lat1) * d2r;
-        double a = Math.pow(Math.sin(dlat/2.0), 2) + Math.cos(lat1*d2r) * Math.cos(lat2*d2r) * Math.pow(Math.sin(dlong/2.0), 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        double d = 6367 * c;
-
-        return d;
-    }
-
-    
+      
 }
