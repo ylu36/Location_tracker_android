@@ -14,11 +14,13 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.location.LocationListener;
 import android.location.Criteria;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 import android.widget.TextView;
 import android.graphics.Color;
+import android.widget.CompoundButton;
+import android.widget.ToggleButton;
+
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -26,12 +28,14 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import org.json.JSONObject;
+import org.json.JSONException;
 
 public class Main extends AppCompatActivity {
     static final int MY_PERMISSIONS_REQUEST_CONST = 1;
+    double totalDistance;
     EditText hostField, usernameField;
-    Button btn;
-    TextView resultView;
+    ToggleButton btn;
+    TextView resultView, totalDistanceField;
     LocationManager locationManager;
     LocationListener locationListener;
     String provider;
@@ -39,23 +43,28 @@ public class Main extends AppCompatActivity {
     String[] permissions = {Manifest.permission.INTERNET, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
 
     public void getLocation(final Location location) {
-        double latitude = location.getLatitude();
-        double longitude = location.getLongitude();
-        String username = String.valueOf(usernameField.getText());
-        String str = username + "'s location Changed New Location is: " + "Latitude: " + latitude + " Longitude: " + longitude;
-        resultView.setText(str);
+//        double latitude = location.getLatitude();
+//        double longitude = location.getLongitude();
+//        String username = String.valueOf(usernameField.getText());
+//        String str = username + "'s location Changed New Location is: " + "Latitude: " + latitude + " Longitude: " + longitude;
+//        resultView.setText(str);
+//        double totalDistance = ;
+//        totalDistanceField.setText();
         sendRequest(location);
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        totalDistance = 0;
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         hostField = findViewById(R.id.editText);
         usernameField = findViewById(R.id.editText2);
         btn = findViewById(R.id.button);
-        resultView = (TextView) findViewById(R.id.textView);
+        resultView = findViewById(R.id.textView);
         resultView.setText("");
+        totalDistanceField = findViewById(R.id.textView5);
+        totalDistanceField.setText("");
         locationListener = new LocationListener() {
             @Override
             public void onLocationChanged(final Location location) {
@@ -82,7 +91,25 @@ public class Main extends AppCompatActivity {
         criteria.setCostAllowed(true);
         criteria.setPowerRequirement(Criteria.POWER_LOW);
         provider = locationManager.getBestProvider(criteria, false);
-
+        btn.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked) {
+                    // The toggle is enabled
+                    if(provider != null) {
+                        if(ContextCompat.checkSelfPermission(Main.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                            locationManager.requestLocationUpdates(provider, 1000, 10, locationListener);
+                        }
+                    }
+                    usernameField.setEnabled(false);
+                    hostField.setEnabled(false);
+                } else {
+                    // The toggle is disabled
+                    locationManager.removeUpdates(locationListener);
+                    usernameField.setEnabled(true);
+                    hostField.setEnabled(true);
+                }
+            }
+        });
         btn.setOnClickListener(new View.OnClickListener() {
            @Override
            public void onClick(View view) {
@@ -154,7 +181,14 @@ public class Main extends AppCompatActivity {
                 (Request.Method.POST, url, json, new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
-                        Log.i("successful request", "Response: " + response.toString());
+                        try {
+                            String str = response.getString("distance");
+                            double distance = Double.valueOf(str);
+                            totalDistance += distance;
+                        Log.i("successful request", "Response: " + totalDistance);
+                            totalDistanceField.setText(str);
+                            resultView.setText(str);
+                        } catch (JSONException e) {Log.e("Unsuccessful request", e.getMessage());}
                     }
                 }, new Response.ErrorListener() {
 
