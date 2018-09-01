@@ -1,10 +1,8 @@
 package ylu36.ncsu.edu.location_tracker;
 
 import android.support.v7.app.AppCompatActivity;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
-
 import android.os.Bundle;
 import android.Manifest;
 import android.content.Context;
@@ -15,12 +13,9 @@ import android.location.LocationManager;
 import android.location.LocationListener;
 import android.location.Criteria;
 import android.widget.EditText;
-import android.widget.Toast;
 import android.widget.TextView;
-import android.graphics.Color;
 import android.widget.CompoundButton;
 import android.widget.ToggleButton;
-
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -29,9 +24,27 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import org.json.JSONObject;
 import org.json.JSONException;
+import java.util.LinkedList;
 
 public class Main extends AppCompatActivity {
-    static final int MY_PERMISSIONS_REQUEST_CONST = 1;
+
+    // ref: https://stackoverflow.com/questions/5498865/size-limited-queue-that-holds-last-n-elements-in-java
+    private class LimitedQueue<E> extends LinkedList<E> {
+        private int limit;
+
+        public LimitedQueue(int limit) {
+            this.limit = limit;
+        }
+
+        @Override
+        public boolean add(E o) {
+            super.add(o);
+            while (size() > limit) { super.remove(); }
+            return true;
+        }
+    }
+
+    LimitedQueue<Double> distances = new LimitedQueue<>(5);
     double totalDistance;
     EditText hostField, usernameField;
     ToggleButton btn;
@@ -40,18 +53,6 @@ public class Main extends AppCompatActivity {
     LocationListener locationListener;
     String provider;
     Criteria criteria;
-    String[] permissions = {Manifest.permission.INTERNET, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
-
-    public void getLocation(final Location location) {
-//        double latitude = location.getLatitude();
-//        double longitude = location.getLongitude();
-//        String username = String.valueOf(usernameField.getText());
-//        String str = username + "'s location Changed New Location is: " + "Latitude: " + latitude + " Longitude: " + longitude;
-//        resultView.setText(str);
-//        double totalDistance = ;
-//        totalDistanceField.setText();
-        sendRequest(location);
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,7 +69,27 @@ public class Main extends AppCompatActivity {
         locationListener = new LocationListener() {
             @Override
             public void onLocationChanged(final Location location) {
-               getLocation(location);
+                if(distances.size() == 5) {
+                    // calc average speed
+                    double speed = 0.;
+                    for(double d: distances)
+                        speed += d;
+                    speed /= 5;
+                    Log.i("speed: ", String.valueOf(speed));
+                    if(speed <= 1.0)
+                        resultView.setText("5 seconds");
+                    else if(speed > 20)
+                        resultView.setText("1 second");
+                    else {
+                        double temp = 5 - speed / 5;
+                        resultView.setText(String.format("%.2f seconds", temp));
+                    }
+                }
+                else {
+                    Log.i("speed: ", "default speed");
+                    resultView.setText("5 seconds");
+                }
+                sendRequest(location);
             }
 
             @Override
@@ -111,31 +132,19 @@ public class Main extends AppCompatActivity {
             }
         });
         btn.setOnClickListener(new View.OnClickListener() {
-           @Override
-           public void onClick(View view) {
-               if(provider != null) {
-                   if(ContextCompat.checkSelfPermission(Main.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                       locationManager.requestLocationUpdates(provider, 1000, 10, locationListener);
-                   }
-               }
-           }
-       });
-//        btn.setOnClickListener(new OnClickListener() {
-//            public void onClick(View v) {
-//                String str = hostField.getText().toString();
-//                Toast msg = Toast.makeText(getBaseContext(),str,Toast.LENGTH_LONG);
-//                msg.show();
-//            }
-//        });
-
+            @Override
+            public void onClick(View view) {
+                if(provider != null) {
+                    if(ContextCompat.checkSelfPermission(Main.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                        locationManager.requestLocationUpdates(provider, 1000, 10, locationListener);
+                    }
+                }
+            }
+        });
     }
     @Override
     protected void onResume() {
         super.onResume();
-        if (ActivityCompat.checkSelfPermission(Main.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            //register the Location Listener with Location Manager
-//            locationManager.requestLocationUpdates(provider, 5000, 1, locationListener);
-        }
     }
 
     @Override
@@ -148,20 +157,6 @@ public class Main extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-
-//        btn.setOnClickListener(new OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                String oldResult = String.valueOf(resultView.getText());
-//                // resultView.setText(("\nStarted Tracking"));
-//                if (ActivityCompat.checkSelfPermission(Main.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-//                    locationManager.requestLocationUpdates(provider, 1000, 1, locationListener);
-//                }
-//                else {
-//                    resultView.setText(("\nStopped Tracking"));
-//                }
-//            }
-//        });
     }
 
     private void sendRequest(Location location) {
@@ -184,10 +179,10 @@ public class Main extends AppCompatActivity {
                         try {
                             String str = response.getString("distance");
                             double distance = Double.valueOf(str);
+                            distances.add(distance);
                             totalDistance += distance;
-                        Log.i("successful request", "Response: " + totalDistance);
-                            totalDistanceField.setText(str);
-                            resultView.setText(str);
+                            Log.i("successful request", "Response: " + totalDistance + " with size " + distances.size());
+                            totalDistanceField.setText(String.format("%.2f km", totalDistance));
                         } catch (JSONException e) {Log.e("Unsuccessful request", e.getMessage());}
                     }
                 }, new Response.ErrorListener() {
@@ -199,7 +194,7 @@ public class Main extends AppCompatActivity {
                     }
                 });
 
-// Access the RequestQueue through your singleton class.
+        // Access the RequestQueue through your singleton class.
         queue.add(jsonObjectRequest);
     }
 }
