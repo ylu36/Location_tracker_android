@@ -29,16 +29,15 @@ public class HomeController extends Controller {
      * this method will be called when the application receives a
      * <code>GET</code> request with a path of <code>/</code>.
      */
+    
     public Result index() {
         return ok(views.html.index.render());
     }
-    
     @Inject
     FormFactory formFactory;
 
     @BodyParser.Of(BodyParser.Json.class)
     public Result handleupdates() {
-        // databaseController.dropTable();
         databaseController.createNewTable();
         DynamicForm dynamicForm = formFactory.form().bindFromRequest();
         String username = dynamicForm.get("username");
@@ -49,8 +48,10 @@ public class HomeController extends Controller {
         double latitude = latitudeString == null ? null : Double.parseDouble(latitudeString);
         double longitude = longitudeString == null? null : Double.parseDouble(longitudeString);
         double distance = 0;
+        
         Location location = new Location(username, timestamp, latitude, longitude, distance);
         distance = databaseController.getDistance(location);
+        location.distance = distance;
         databaseController.insert(username, timestamp, latitude, longitude, distance);
         databaseController.selectAll();
         JsonNode locationJson = Json.toJson(location);

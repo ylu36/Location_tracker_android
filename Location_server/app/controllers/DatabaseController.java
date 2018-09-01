@@ -83,8 +83,7 @@ public class DatabaseController {
 
                 Double dist = 0.0;
                 dist = calculateDistanceInKm(result.getDouble(1), result.getDouble(2), currentLat, currentLon);
-                dist += result.getDouble("distance");
-            }
+            
             return dist;
         } catch (SQLException e) {
             System.out.println(e.getMessage());
@@ -121,6 +120,8 @@ public class DatabaseController {
                 System.out.println(rs.getInt("id") +  "\t" + 
                                    rs.getString("username") + "\t" +
                                    rs.getLong("timestamp") + "\t" +
+                                   rs.getDouble("latitude")+ '\t' + 
+                                   rs.getDouble("longitude")+ '\t'+
                                    rs.getDouble("distance"));
             }
         } catch (SQLException e) {
