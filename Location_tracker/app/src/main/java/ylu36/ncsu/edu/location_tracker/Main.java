@@ -7,7 +7,6 @@ import android.os.Bundle;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.view.View;
 import android.location.Location;
 import android.location.LocationManager;
 import android.location.LocationListener;
@@ -24,7 +23,6 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import org.json.JSONObject;
 import org.json.JSONException;
-import java.util.LinkedList;
 
 public class Main extends AppCompatActivity {
     double totalDistance;
@@ -34,7 +32,6 @@ public class Main extends AppCompatActivity {
     LocationManager locationManager;
     LocationListener locationListener;
     String provider;
-    Criteria criteria;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,7 +68,7 @@ public class Main extends AppCompatActivity {
             public void onProviderDisabled(final String provider) {
             }
         };
-//        provider = locationManager.getBestProvider(criteria, false);
+
         btn.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -94,16 +91,6 @@ public class Main extends AppCompatActivity {
                 }
             }
         });
-//        btn.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                if(provider != null) {
-//                    if(ContextCompat.checkSelfPermission(Main.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-//                        locationManager.requestLocationUpdates(provider, 1000, 10, locationListener);
-//                    }
-//                }
-//            }
-//        });
     }
     @Override
     protected void onResume() {
@@ -132,39 +119,34 @@ public class Main extends AppCompatActivity {
             json.put("latitude", location.getLatitude());
             json.put("longitude", location.getLongitude());
             json.put("timestamp", System.currentTimeMillis());
+
+            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
+                    (Request.Method.POST, url, json, new Response.Listener<JSONObject>() {
+                        @Override
+                        public void onResponse(JSONObject response) {
+                            try {
+                                double distance = Double.parseDouble(response.getString("totalDistance"));
+                                double speed = Double.parseDouble(response.getString("speed"));
+                                double freq;
+                                if(speed <= 1) freq = 5;
+                                else if(speed >= 20) freq = 1;
+                                else freq = Math.abs(5 - speed / 5);
+                                resultView.setText(String.format("%.2f seconds", freq));
+                                totalDistanceField.setText(String.format("%.2f m", distance));
+                            } catch (JSONException e) {Log.e("Unsuccessful request", e.getMessage());}
+                        }
+                    }, new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            Log.e("Unsuccessful request",error.getMessage());
+                            resultView.setText("Could not connect to server!");
+                        }
+                    });
+
+            // Access the RequestQueue through your singleton class.
+            queue.add(jsonObjectRequest);
         }catch(Exception e){
             Log.e("Cannot create json",e.getMessage());
         }
-
-        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
-                (Request.Method.POST, url, json, new Response.Listener<JSONObject>() {
-                    @Override
-                    public void onResponse(JSONObject response) {
-                        try {
-                            double distance = Double.parseDouble(response.getString("totalDistance"));
-                            double speed = Double.parseDouble(response.getString("speed"));
-                            double freq = 0;
-                            if(speed <= 1) freq = 5;
-                            else if(speed >= 20) freq = 1;
-                            else freq = Math.abs(5 - speed / 5);
-                            resultView.setText(String.format("%.2f seconds", freq));
-//                            double distance = Double.valueOf(str);
-//                            distances.add(distance);
-//                            totalDistance += distance;
-//                            Log.i("successful request", "Response: " + totalDistance + " with size " + distances.size());
-                            totalDistanceField.setText(String.format("%.2f m", distance));
-                        } catch (JSONException e) {Log.e("Unsuccessful request", e.getMessage());}
-                    }
-                }, new Response.ErrorListener() {
-
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Log.e("Unsuccessful request",error.getMessage());
-                        resultView.setText("Could not connect to server!");
-                    }
-                });
-
-        // Access the RequestQueue through your singleton class.
-        queue.add(jsonObjectRequest);
     }
 }
