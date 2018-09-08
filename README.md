@@ -14,3 +14,6 @@ sending the next update, based on the user’s speed.
 
 ## Build Enironment
 The server was built and tested within a Ubuntu 16.04 Virtual Machine. The Android app was built with Android Studio on Windows OS. 
+
+## Screenshots
+<img src="https://github.com/ylu36/Location_tracker_android/blob/master/Screenshot_1536436251.png" height="600" width="350"> <img src="https://github.com/ylu36/Location_tracker_android/blob/master/Screenshot_1536436404.png" height="600" width="350">
