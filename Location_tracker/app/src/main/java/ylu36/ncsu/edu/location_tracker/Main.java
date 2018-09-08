@@ -27,24 +27,6 @@ import org.json.JSONException;
 import java.util.LinkedList;
 
 public class Main extends AppCompatActivity {
-
-    // ref: https://stackoverflow.com/questions/5498865/size-limited-queue-that-holds-last-n-elements-in-java
-    private class LimitedQueue<E> extends LinkedList<E> {
-        private int limit;
-
-        public LimitedQueue(int limit) {
-            this.limit = limit;
-        }
-
-        @Override
-        public boolean add(E o) {
-            super.add(o);
-            while (size() > limit) { super.remove(); }
-            return true;
-        }
-    }
-
-    LimitedQueue<Double> distances = new LimitedQueue<>(5);
     double totalDistance;
     EditText hostField, usernameField;
     ToggleButton btn;
@@ -66,29 +48,14 @@ public class Main extends AppCompatActivity {
         resultView.setText("");
         totalDistanceField = findViewById(R.id.textView5);
         totalDistanceField.setText("");
+
+        Criteria criteria = new Criteria();
+        criteria.setAccuracy(Criteria.ACCURACY_FINE);
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        provider = locationManager.getBestProvider(criteria, false);
         locationListener = new LocationListener() {
             @Override
             public void onLocationChanged(final Location location) {
-                if(distances.size() == 5) {
-                    // calc average speed
-                    double speed = 0.;
-                    for(double d: distances)
-                        speed += d;
-                    speed /= 5;
-                    Log.i("speed: ", String.valueOf(speed));
-                    if(speed <= 1.0)
-                        resultView.setText("5 seconds");
-                    else if(speed > 20)
-                        resultView.setText("1 second");
-                    else {
-                        double temp = 5 - speed / 5;
-                        resultView.setText(String.format("%.2f seconds", temp));
-                    }
-                }
-                else {
-                    Log.i("speed: ", "default speed");
-                    resultView.setText("5 seconds");
-                }
                 sendRequest(location);
             }
 
@@ -104,20 +71,16 @@ public class Main extends AppCompatActivity {
             public void onProviderDisabled(final String provider) {
             }
         };
-        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        criteria = new Criteria();
-        criteria.setAccuracy(Criteria.ACCURACY_FINE);
-        criteria.setAltitudeRequired(false);
-        criteria.setBearingRequired(false);
-        criteria.setCostAllowed(true);
-        criteria.setPowerRequirement(Criteria.POWER_LOW);
-        provider = locationManager.getBestProvider(criteria, false);
+//        provider = locationManager.getBestProvider(criteria, false);
         btn.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
                 if (isChecked) {
                     // The toggle is enabled
                     if(provider != null) {
                         if(ContextCompat.checkSelfPermission(Main.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                            Log.i("locationManager", "called here");
                             locationManager.requestLocationUpdates(provider, 1000, 10, locationListener);
                         }
                     }
@@ -131,16 +94,16 @@ public class Main extends AppCompatActivity {
                 }
             }
         });
-        btn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if(provider != null) {
-                    if(ContextCompat.checkSelfPermission(Main.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                        locationManager.requestLocationUpdates(provider, 1000, 10, locationListener);
-                    }
-                }
-            }
-        });
+//        btn.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+//                if(provider != null) {
+//                    if(ContextCompat.checkSelfPermission(Main.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+//                        locationManager.requestLocationUpdates(provider, 1000, 10, locationListener);
+//                    }
+//                }
+//            }
+//        });
     }
     @Override
     protected void onResume() {
@@ -172,17 +135,24 @@ public class Main extends AppCompatActivity {
         }catch(Exception e){
             Log.e("Cannot create json",e.getMessage());
         }
+
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
                 (Request.Method.POST, url, json, new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
                         try {
-                            String str = response.getString("distance");
-                            double distance = Double.valueOf(str);
-                            distances.add(distance);
-                            totalDistance += distance;
-                            Log.i("successful request", "Response: " + totalDistance + " with size " + distances.size());
-                            totalDistanceField.setText(String.format("%.2f km", totalDistance));
+                            double distance = Double.parseDouble(response.getString("totalDistance"));
+                            double speed = Double.parseDouble(response.getString("speed"));
+                            double freq = 0;
+                            if(speed <= 1) freq = 5;
+                            else if(speed >= 20) freq = 1;
+                            else freq = Math.abs(5 - speed / 5);
+                            resultView.setText(String.format("%.2f seconds", freq));
+//                            double distance = Double.valueOf(str);
+//                            distances.add(distance);
+//                            totalDistance += distance;
+//                            Log.i("successful request", "Response: " + totalDistance + " with size " + distances.size());
+                            totalDistanceField.setText(String.format("%.2f m", distance));
                         } catch (JSONException e) {Log.e("Unsuccessful request", e.getMessage());}
                     }
                 }, new Response.ErrorListener() {
