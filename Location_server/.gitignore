@@ -2,4 +2,5 @@
 .g8/
 logs/
 bin/
+db/
 target/

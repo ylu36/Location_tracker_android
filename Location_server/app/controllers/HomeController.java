@@ -38,6 +38,7 @@ public class HomeController extends Controller {
 
     @BodyParser.Of(BodyParser.Json.class)
     public Result handleupdates() {
+        // databaseController.dropTable();
         databaseController.createNewTable();
         DynamicForm dynamicForm = formFactory.form().bindFromRequest();
         String username = dynamicForm.get("username");
@@ -47,16 +48,17 @@ public class HomeController extends Controller {
         String longitudeString = dynamicForm.get("longitude");
         double latitude = latitudeString == null ? null : Double.parseDouble(latitudeString);
         double longitude = longitudeString == null? null : Double.parseDouble(longitudeString);
-        double distance = 0;
-        
-        Location location = new Location(username, timestamp, latitude, longitude, distance);
-        distance = databaseController.getDistance(location);
-        location.distance = distance;
-        databaseController.insert(username, timestamp, latitude, longitude, distance);
+               
+        Location location = new Location(username, timestamp, latitude, longitude, 0, 0);
+        // calculate total distance for a user
+        double[] res = new double[2];
+        res = databaseController.getDistanceAndSpeed(location);
+        double distance = res[0];
+        double speed = res[1];
+        // calculate speed 
+        databaseController.insert(username, timestamp, latitude, longitude, distance, speed);
         databaseController.selectAll();
         JsonNode locationJson = Json.toJson(location);
         return ok(locationJson);
     }
-
-      
 }

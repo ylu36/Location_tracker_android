@@ -45,7 +45,8 @@ public class DatabaseController {
                 + "	timestamp integer,\n"
                 + " latitude real,\n"
                 + " longitude real,\n"
-                 + " distance real\n"
+                + " totalDistance real,\n"
+                + " speed real\n"
                 + ");";
         
         try (Connection conn = db.getConnection();
@@ -58,20 +59,20 @@ public class DatabaseController {
         }
     }
     // ref: https://en.wikipedia.org/wiki/Haversine_formula
-    public double calculateDistanceInKm(double lat1, double long1, double lat2, double long2) {
+    public double calculateDistance(double lat1, double long1, double lat2, double long2) {
         double dlong = (long2 - long1) * d2r;
         double dlat = (lat2 - lat1) * d2r;
         double a = Math.pow(Math.sin(dlat/2.0), 2) + Math.cos(lat1*d2r) * Math.cos(lat2*d2r) * Math.pow(Math.sin(dlong/2.0), 2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        double d = 6367 * c;
+        double d = 6367 * c * 1000;
 
         return d;
     }
 
-    public double getDistance(Location location) {
-        
-        String sql = "SELECT latitude,longitude, distance from location where username=? order by id desc";
-        
+    public double[] getDistanceAndSpeed(Location location) {        
+        double[] res = new double[2];
+        String sql = "SELECT latitude, longitude, timestamp from location where username=? order by id asc";
+        long timeSince = 0;
         try (
             Connection conn = db.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -80,19 +81,21 @@ public class DatabaseController {
                 ResultSet result = pstmt.executeQuery();
                 Double currentLat = location.latitude;
                 Double currentLon = location.longitude;
-
+                Long currentTime = location.timestamp;
                 Double dist = 0.0;
-                dist = calculateDistanceInKm(result.getDouble(1), result.getDouble(2), currentLat, currentLon);
-            
-            return dist;
+                dist = calculateDistance(result.getDouble(1), result.getDouble(2), currentLat, currentLon);
+                res[0] = dist;
+                timeSince = (currentTime - result.getLong(3))/1000;
+                res[1] = dist / timeSince;
+            return res;
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            System.out.println("err is "+e.getMessage());
         }
-        return 0.;
+        return res;
     }
 
-    public void insert(String username, long timestamp, double latitude, double longitude, double distance) {
-        String sql = "INSERT INTO Location(username, timestamp, latitude, longitude, distance) VALUES(?,?,?,?,?)";
+    public void insert(String username, long timestamp, double latitude, double longitude, double distance, double speed) {
+        String sql = "INSERT INTO Location(username, timestamp, latitude, longitude, totalDistance, speed) VALUES(?,?,?,?,?,?)";
  
         try (
             Connection conn = db.getConnection();
@@ -102,19 +105,24 @@ public class DatabaseController {
             pstmt.setDouble(3, latitude);
             pstmt.setDouble(4, longitude);
             pstmt.setDouble(5, distance);
+            pstmt.setDouble(6, speed);
             pstmt.executeUpdate();
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            System.out.println("err is: "+e.getMessage());
         }
     }
 
     public void selectAll(){
-        String sql = "SELECT id, username, timestamp, latitude, longitude, distance FROM Location";
+        String sql = "SELECT id, username, timestamp, latitude, longitude, totalDistance, speed FROM Location";
         
         try (Connection conn = db.getConnection();
              Statement stmt  = conn.createStatement();
              ResultSet rs    = stmt.executeQuery(sql)){
-            
+             double freq = 0;
+             double speed = rs.getDouble("speed");
+             if(speed <= 1) freq = 5;
+             else if(speed >= 20) freq = 1;
+             else freq = Math.abs(5 - speed / 5);
             // loop through the result set
             while (rs.next()) {
                 System.out.println(rs.getInt("id") +  "\t" + 
@@ -122,7 +130,9 @@ public class DatabaseController {
                                    rs.getLong("timestamp") + "\t" +
                                    rs.getDouble("latitude")+ '\t' + 
                                    rs.getDouble("longitude")+ '\t'+
-                                   rs.getDouble("distance"));
+                                   rs.getDouble("totalDistance")+ '\t'+
+                                   rs.getDouble("speed") + '\t' + 
+                                   freq);
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
