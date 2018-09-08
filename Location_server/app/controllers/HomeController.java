@@ -33,22 +33,14 @@ public class HomeController extends Controller {
     public Result index() {
         return ok(views.html.index.render());
     }
-    @Inject
-    FormFactory formFactory;
 
     @BodyParser.Of(BodyParser.Json.class)
     public Result handleupdates() {
-        // databaseController.dropTable();
-        databaseController.createNewTable();
-        DynamicForm dynamicForm = formFactory.form().bindFromRequest();
-        String username = dynamicForm.get("username");
-        String timestampString = dynamicForm.get("timestamp");
-        long timestamp = Long.parseLong(timestampString);
-        String latitudeString = dynamicForm.get("latitude");
-        String longitudeString = dynamicForm.get("longitude");
-        double latitude = latitudeString == null ? null : Double.parseDouble(latitudeString);
-        double longitude = longitudeString == null? null : Double.parseDouble(longitudeString);
-               
+        JsonNode json = request().body().asJson();
+        String username = json.findPath("username").textValue();
+        long timestamp = json.findPath("timestamp").longValue();
+        double latitude = json.findPath("latitude").doubleValue();
+        double longitude = json.findPath("longitude").doubleValue();
         Location location = new Location(username, timestamp, latitude, longitude, 0, 0);
         // calculate total distance for a user
         double[] res = new double[2];
